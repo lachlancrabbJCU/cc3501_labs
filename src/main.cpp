@@ -5,8 +5,11 @@
 
 #include "WS2812.pio.h" // This header file gets produced during compilation from the WS2812.pio file
 #include "drivers/logging/logging.h"
+#include "drivers/WS2812/WS2812.cpp"
+#include "colours.h"
 
 #define LED_PIN 14
+#define NUMBER_OF_LEDS 12
 
 int main()
 {
@@ -15,25 +18,62 @@ int main()
     // Initialise PIO0 to control the LED chain
     uint pio_program_offset = pio_add_program(pio0, &ws2812_program);
     ws2812_program_init(pio0, 0, pio_program_offset, LED_PIN, 800000, false);
-    uint32_t led_data [1];
+    LedArray led_array(NUMBER_OF_LEDS);
 
-    for (;;) {
+    for (;;)
+    {
         // Test the log system
         log(LogLevel::INFORMATION, "Hello world");
 
         // Turn on the first LED to be a certain colour
-        uint8_t red = 0;
-        uint8_t green = 0;
-        uint8_t blue = 255;
-        led_data[0] = (red << 24) | (green << 16) | (blue << 8);
-        pio_sm_put_blocking(pio0, 0, led_data[0]);
-        sleep_ms(500);
 
-        // Set the first LED off 
-        led_data[0] = 0;
-        pio_sm_put_blocking(pio0, 0, led_data[0]);
-        sleep_ms(500);
+        // led_array.set(1, LED_RED);
+
+        // led_array.set(2, LED_BLUE);
+
+        // led_array.set(3, LED_GREEN);
+
+        // led_array.set(7, LED_CYAN);
+
+        for (size_t i = 0; i < NUMBER_OF_LEDS; i++)
+        {
+            for (size_t j = 0; j < NUMBER_OF_LEDS - i; j++)
+            {
+                led_array.set(j, LED_BLUE);
+                // if (j == 0)
+                // {
+                //     led_array.set(NUMBER_OF_LEDS - 1, LED_OFF);
+                // }
+                if (j > 0)
+                {
+                    led_array.set(j - 1, LED_OFF);
+                }
+                led_array.update();
+                sleep_ms(50);
+            }
+        }
+
+        for (size_t i = (NUMBER_OF_LEDS + 1); i > 0; i--)
+        {
+            for (size_t j = NUMBER_OF_LEDS; j > (NUMBER_OF_LEDS - i); j--)
+            {
+                led_array.set((j - 1), LED_OFF);
+                if (j < NUMBER_OF_LEDS)
+                {
+                    led_array.set(j, LED_BLUE);
+                }
+                led_array.update();
+                sleep_ms(50);
+            }
+        }
+
+        led_array.update();
+
+        // sleep_ms(500);
+
+        // led_array.off();
+
+        // sleep_ms(500);
     }
-
     return 0;
 }
