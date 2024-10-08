@@ -6,7 +6,7 @@
 class LedArray
 {
 public:
-    LedArray(int led_pin, int number_of_leds);
+    LedArray(int number_of_leds);
     void init();
     void set(uint8_t position, uint32_t colour);
     void set_multiple(uint8_t position, uint32_t colour)
@@ -27,8 +27,7 @@ public:
     void off();
 
 private:
-    int led_gpio_pin;
-    int number_of_leds;
-    std::vector<uint32_t> led_data;
-    std::vector<uint32_t> last_update_led_data;
+    int number_of_leds_;
+    std::vector<uint32_t> led_data_;
+    std::vector<uint32_t> last_update_led_data_;
 };
