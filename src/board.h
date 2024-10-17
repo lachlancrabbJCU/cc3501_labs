@@ -17,3 +17,5 @@
 // Accelerometer
 #define ACCEL_I2C_INSTANCE i2c0
 #define ACCEL_I2C_ADDRRESS 0x19
+
+#define NUMBER_OF_TASKS 3

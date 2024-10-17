@@ -18,6 +18,147 @@
 
 using namespace std;
 
+volatile int current_task{2}; // Global variable to track the current task
+
+// Flag to track first entry into each task
+bool first_entry{true}; // Will be reset when switching cases
+
+// ISR for button press to switch between cases
+void gpio_callback(uint gpio, uint32_t events);
+
+void spirit_level(Accelerometer accel, LedArray led_array, uint32_t x_level_colour, uint32_t y_level_colour);
+
+void led_stackup(LedArray led_array, uint32_t led_colour);
+
+void audio_visualiser(Microphone microphone, LedArray led_array);
+
+int main()
+{
+    stdio_init_all();
+    Accelerometer accel;
+    LedArray led_array(NUMBER_OF_LEDS);
+    const uint32_t YLevelColour{LED_GREEN};
+    const uint32_t XLevelColour{LED_BLUE};
+
+    gpio_init(SW1);
+    gpio_set_dir(SW1, GPIO_IN);
+
+    uint8_t current_state{1};
+
+    Microphone microphone;
+    microphone.init();
+
+    // Setup the switch GPIO for input with a pull-up resistor
+    gpio_init(SW1);
+    gpio_set_dir(SW1, GPIO_OUT);
+    gpio_pull_up(SW1);
+
+    // Set up an interrupt on the SWITCH_PIN for a falling edge (button press)
+    gpio_set_irq_enabled_with_callback(SW1, GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
+
+    while (true)
+    {
+        switch (current_task)
+        {
+        case 0: // Lab 7: led_stackup
+        {
+            led_stackup(led_array, LED_CHARTREUSE);
+        }
+        case 1: // Lab 8: spirit_level
+        {
+            spirit_level(accel, led_array, XLevelColour, YLevelColour);
+        }
+        case 2: // Lab 9: Audio visualiser
+        {
+            audio_visualiser(microphone, led_array);
+        }
+        case 4: // Reset flags
+        {
+            first_entry = true;
+            std::cout << "Entry flag reset." << std::endl;
+            break;
+        }
+
+        default:
+        {
+            if (first_entry)
+            {
+                sleep_ms(1000);
+                first_entry = false;
+            }
+            std::cout << "Invalid task." << std::endl;
+            break;
+        }
+        }
+    }
+}
+
+void audio_visualiser(Microphone microphone, LedArray led_array)
+{
+    uint16_t microphone_samples[1024]{};
+    microphone.read(microphone_samples);
+    int16_t time_domain[1024]{};
+    microphone.apply_dc_offset(microphone_samples, time_domain);
+    microphone.apply_window_function(time_domain);
+
+    q15_t freq_domain[1026]{};
+    microphone.apply_fft(time_domain, freq_domain);
+
+    q15_t cplx_mag_domain[1026]{};
+    microphone.get_complex_magnitude(freq_domain, cplx_mag_domain);
+
+    uint32_t bin[12]{};
+    microphone.process_results(cplx_mag_domain, bin);
+
+    for (int i{}; i < 12; i++)
+    {
+        bin[i] <<= 8;
+    }
+    for (int i{}; i < 12; i++)
+    {
+        led_array.set(i, bin[i]);
+    }
+
+    // led_array.set_multiple(0, bin_6, 1, bin_8, 2, bin_11, 3, bin_16, 4, bin_24, 5, bin_35, 6, bin_51, 7, bin_75, 8, bin_110, 9, bin_161, 10, bin_237, 11, bin_349, 12, bin_513);
+    led_array.update();
+}
+
+void led_stackup(LedArray led_array, uint32_t led_colour)
+{
+    for (size_t i = 0; i < NUMBER_OF_LEDS; i++)
+    {
+        for (size_t j = 0; j < NUMBER_OF_LEDS - i; j++)
+        {
+            led_array.set(j, led_colour);
+            // if (j == 0)
+            // {
+            //     led_array.set(NUMBER_OF_LEDS - 1, LED_OFF);
+            // }
+            if (j > 0)
+            {
+                led_array.set(j - 1, LED_OFF);
+            }
+            led_array.update();
+            sleep_ms(50);
+        }
+        busy_wait_ms(50);
+    }
+
+    for (size_t i = (NUMBER_OF_LEDS + 1); i > 0; i--)
+    {
+        for (size_t j = NUMBER_OF_LEDS; j > (NUMBER_OF_LEDS - i); j--)
+        {
+            led_array.set((j - 1), LED_OFF);
+            if (j < NUMBER_OF_LEDS)
+            {
+                led_array.set(j, led_colour);
+            }
+            led_array.update();
+            sleep_ms(50);
+        }
+    }
+}
+
 void spirit_level(Accelerometer accel, LedArray led_array, uint32_t x_level_colour, uint32_t y_level_colour)
 {
     int16_t x_data{}, y_data{}, z_data{};
@@ -81,126 +222,11 @@ void spirit_level(Accelerometer accel, LedArray led_array, uint32_t x_level_colo
     sleep_ms(200);
 }
 
-void led_stackup(LedArray led_array, uint32_t led_colour)
+void gpio_callback(uint gpio, uint32_t events)
 {
-    for (size_t i = 0; i < NUMBER_OF_LEDS; i++)
+    if (gpio == SW1)
     {
-        for (size_t j = 0; j < NUMBER_OF_LEDS - i; j++)
-        {
-            led_array.set(j, led_colour);
-            // if (j == 0)
-            // {
-            //     led_array.set(NUMBER_OF_LEDS - 1, LED_OFF);
-            // }
-            if (j > 0)
-            {
-                led_array.set(j - 1, LED_OFF);
-            }
-            led_array.update();
-            sleep_ms(50);
-        }
-    }
-
-    for (size_t i = (NUMBER_OF_LEDS + 1); i > 0; i--)
-    {
-        for (size_t j = NUMBER_OF_LEDS; j > (NUMBER_OF_LEDS - i); j--)
-        {
-            led_array.set((j - 1), LED_OFF);
-            if (j < NUMBER_OF_LEDS)
-            {
-                led_array.set(j, led_colour);
-            }
-            led_array.update();
-            sleep_ms(50);
-        }
-    }
-}
-
-// static auto gpio_irq_callback(uint gpio, uint32_t event_mask) -> void
-// {
-//     printf("Callback on GPIO %d\n", gpio);
-//     if (current_state > 1)
-//     {
-//         current_state = 0;
-//     }
-//     else
-//     {
-//         current_state += 1;
-//     }
-//     busy_wait_ms(10);
-// }
-
-int main()
-{
-    stdio_init_all();
-    Accelerometer accel;
-    LedArray led_array(NUMBER_OF_LEDS);
-    const uint32_t YLevelColour{LED_GREEN};
-    const uint32_t XLevelColour{LED_BLUE};
-
-    gpio_init(SW1);
-    gpio_set_dir(SW1, GPIO_IN);
-
-    // uint32_t event_mask = GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE;
-    // uint32_t event_mask = GPIO_IRQ_EDGE_RISE;
-    // gpio_set_irq_enabled_with_callback(SW1, event_mask, true, &gpio_irq_callback);
-    uint8_t current_state{1};
-
-    Microphone microphone;
-    microphone.init();
-    // std::array<uint16_t, 1024> microphone_samples{};
-
-    while (true)
-    {
-
-        // spirit_level(accel, led_array, XLevelColour, YLevelColour);
-        // led_stackup(led_array, LED_BLUE);
-
-        // uint32_t random_colour{get_rand_32()};
-        // for (size_t i = 0; i < NUMBER_OF_LEDS; i++)
-        // {
-        //     led_array.set(i, random_colour);
-        // }
-        //     switch (current_state)
-        //     {
-        //     case 0:
-        //         led_stackup(led_array, LED_BLUE);
-        //         break;
-        //     case 1:
-        //         spirit_level(accel, led_array, XLevelColour, YLevelColour);
-        //         break;
-        //     default:
-        //         current_state = 0;
-        //         break;
-        //     }
-        // }
-        // return 0;
-
-        uint16_t microphone_samples[1024]{};
-        microphone.read(microphone_samples);
-        int16_t time_domain[1024]{};
-        microphone.apply_dc_offset(microphone_samples, time_domain);
-        microphone.apply_window_function(time_domain);
-
-        q15_t freq_domain[1026]{};
-        microphone.apply_fft(time_domain, freq_domain);
-
-        q15_t cplx_mag_domain[1026]{};
-        microphone.get_complex_magnitude(freq_domain, cplx_mag_domain);
-
-        uint32_t bin[12]{};
-        microphone.process_results(cplx_mag_domain, bin);
-
-        for (int i{}; i < 13; i++)
-        {
-            bin[i] <<= 8;
-        }
-        for (int i{}; i < 12; i++)
-        {
-            led_array.set(i, bin[i]);
-        }
-
-        // led_array.set_multiple(0, bin_6, 1, bin_8, 2, bin_11, 3, bin_16, 4, bin_24, 5, bin_35, 6, bin_51, 7, bin_75, 8, bin_110, 9, bin_161, 10, bin_237, 11, bin_349, 12, bin_513);
-        led_array.update();
+        current_task = (current_task + 1) % NUMBER_OF_TASKS;
+        first_entry = true; // Set first_entry to true when switching to a new task
     }
 }
