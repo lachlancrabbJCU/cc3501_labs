@@ -1,5 +1,7 @@
 #pragma once
 
+#include "arm_math.h"
+
 class Microphone
 {
 public:
@@ -8,10 +10,13 @@ public:
     void read(uint16_t *adc_sample);
     void apply_dc_offset(uint16_t *adc_samples, int16_t *time_domain);
     void apply_window_function(int16_t *adc_sample);
+    void apply_fft(int16_t *time_domain, int16_t *freq_domain);
+    void get_complex_magnitude(int16_t *freq_domain, int16_t *complex_magnitude);
+    void process_results(int16_t *complex_magnitude, uint32_t *bin);
 
 private:
+    arm_rfft_instance_q15 microphone_fft_instance{};
     const unsigned AdcFrequency{44100U};
-    const unsigned AdcPeriodus{static_cast<unsigned>((static_cast<double>(10 ^ 6) / AdcFrequency))};
     const unsigned long AdcClock{48'000'000UL};
     const unsigned NumberofSamples{1024U};
     const float ClockDivider{(static_cast<float>(AdcClock) / AdcFrequency) - 1};
