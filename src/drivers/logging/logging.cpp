@@ -19,7 +19,8 @@ void setLogLevel(LogLevel newLevel)
 void log(LogLevel level, const char *msg)
 {
     // Should we show this message?
-    if (level < maxLogLevel) {
+    if (level < maxLogLevel)
+    {
         return;
     }
 
@@ -30,17 +31,17 @@ void log(LogLevel level, const char *msg)
 
     // Convert the level to a string
     const char *levelStr;
-    switch (level) {
-        case LogLevel::INFORMATION:
-            levelStr = "Information";
-            break;
-        case LogLevel::WARNING:
-            levelStr = "Warning";
-            break;
-        case LogLevel::ERROR:
-            levelStr = "Error";
-            break;
-        
+    switch (level)
+    {
+    case LogLevel::INFORMATION:
+        levelStr = "Information";
+        break;
+    case LogLevel::WARNING:
+        levelStr = "Warning";
+        break;
+    case LogLevel::ERROR:
+        levelStr = "Error";
+        break;
     };
     printf("[%u.%03u %s]: %s\n", time_sec, time_decimal, levelStr, msg);
 }
